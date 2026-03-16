@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=0" />
+    <title>BookLoop | Reservation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
+        .glass { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
+        .book-card { transition: all 0.2s ease; border: 1px solid #f1f5f9; }
+        .book-card:active { transform: scale(0.98); }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        /* Hide cart on mobile unless toggled */
+        @media (max-width: 1024px) {
+            #sidebar {
+                position: fixed; bottom: 0; left: 0; right: 0;
+                z-index: 50; transform: translateY(100%);
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                max-height: 80vh; overflow-y: auto; border-radius: 20px 20px 0 0;
+            }
+            #sidebar.active { transform: translateY(0); }
+            .cart-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 40; }
+            .cart-overlay.active { display: block; }
+        }
+    </style>
+</head>
+<body class="pb-20 lg:pb-0">
+
+    <div class="cart-overlay" id="overlay"></div>
+
+    <header class="sticky top-0 z-30 glass border-b border-slate-200 px-4 py-3">
+        <div class="max-w-7xl mx-auto flex flex-col gap-3">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-xl font-bold text-indigo-600">BookLoop</h1>
+                    <p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Pick-up · Payment First</p>
+                </div>
+                <button id="mobileCartBtn" class="lg:hidden bg-indigo-600 text-white px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 shadow-lg">
+                    <span>🛒</span> <span id="mobileCount">0</span> Items
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <input id="searchTitle" type="search" placeholder="Search title..." class="bg-slate-100 border-none rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+                <div class="grid grid-cols-2 gap-2">
+                    <select id="filterAuthor" class="bg-slate-100 border-none rounded-xl px-2 py-2 text-xs outline-none focus:ring-2 focus:ring-indigo-500"><option value="">All Authors</option></select>
+                    <select id="filterGenre" class="bg-slate-100 border-none rounded-xl px-2 py-2 text-xs outline-none focus:ring-2 focus:ring-indigo-500"><option value="">All Genres</option></select>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto px-4 py-6">
+        <div class="flex flex-col lg:flex-row gap-6">
+            
+            <main class="flex-1">
+                <div id="booksGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    <div class="col-span-full py-20 text-center text-slate-400">Loading library...</div>
+                </div>
+            </main>
+
+            <aside id="sidebar" class="w-full lg:w-[380px] bg-white shadow-2xl lg:shadow-none p-6 border-t lg:border-t-0 lg:border-l border-slate-200">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg font-bold">Your Reservation</h3>
+                    <button id="clearCart" class="text-xs text-rose-500 font-bold uppercase tracking-wider">Clear All</button>
+                </div>
+
+                <div id="cartContent" class="space-y-4 max-h-[400px] overflow-y-auto mb-6 pr-2">
+                    <p class="text-center text-slate-400 py-10">Your cart is empty</p>
+                </div>
+
+                <div class="border-t border-slate-100 pt-4 space-y-2">
+                    <div class="flex justify-between text-sm"><span class="text-slate-500">Total Items:</span> <span id="totalQty" class="font-bold">0</span></div>
+                    <div class="flex justify-between text-lg"><span class="font-bold">Grand Total:</span> <span id="grandTotal" class="font-bold text-indigo-600">₱0.00</span></div>
+                </div>
+
+                <div class="mt-6 bg-slate-50 p-4 rounded-2xl text-[11px] text-slate-600 leading-relaxed mb-6">
+                    <p class="font-bold text-slate-900 mb-1">Payment Details:</p>
+                    GCash / PayMaya: <strong>09126456792 (cherel)</strong>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="reviewBtn" class="py-3 rounded-xl border border-slate-200 font-bold text-sm hover:bg-slate-50 transition-colors">Review</button>
+                    <button id="confirmBtn" class="py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all">Confirm</button>
+                </div>
+
+                <div id="confirmationBox" class="mt-4 hidden animate-in fade-in slide-in-from-bottom-2 duration-300"></div>
+                
+                <button id="closeCart" class="lg:hidden w-full mt-4 py-2 text-slate-400 text-xs font-bold uppercase tracking-widest">Close</button>
+            </aside>
+        </div>
+    </div>
+
+    <div id="disclaimerModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div class="bg-white w-full max-w-lg rounded-3xl p-8 shadow-2xl">
+            <h2 class="text-2xl font-bold mb-4">Before you start</h2>
+            <ul class="space-y-3 text-sm text-slate-600 mb-8">
+                <li class="flex gap-3"><span>✅</span> No personal info collected here.</li>
+                <li class="flex gap-3"><span>✅</span> Redirect to Google Form after confirm.</li>
+                <li class="flex gap-3"><span>✅</span> <strong>Payment First</strong> policy.</li>
+                <li class="flex gap-3"><span>✅</span> Pick-up only.</li>
+            </ul>
+            <div class="flex items-center gap-4">
+                <label class="flex items-center gap-2 flex-1 cursor-pointer text-sm font-medium">
+                    <input id="agreeCheckbox" type="checkbox" class="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"/> I understand
+                </label>
+                <button id="continueBtn" class="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold disabled:opacity-30 transition-opacity" disabled>Continue</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* [KEEP YOUR CONFIG AND API LOGIC FROM PREVIOUS VERSION] */
+        const API_URL = 'https://script.google.com/macros/s/AKfycbzpSgoZevw-NO5Ttil7dQ9LSPMCRKU0OGwuXczTCGCNzSRYpY5CEGpKTN1ywvCgyPxP/exec';
+        const FORM_BASE = 'https://docs.google.com/forms/d/e/1FAIpQLSeLJyNxN004Pg1Zua2f06ZJzVIHVU9njEM3lXVuRCLjx1os0Q/viewform';
+        const FORM_ORDER_FIELD = 'entry.813489840';
+
+        let inventory = [];
+        let cart = {};
+        const qs = s => document.querySelector(s);
+        const qsa = s => document.querySelectorAll(s);
+        const fmt = n => '₱' + Number(n).toLocaleString(undefined, {minimumFractionDigits: 2});
+
+        /* MOBILE UI HANDLERS */
+        const sidebar = qs('#sidebar');
+        const overlay = qs('#overlay');
+        
+        const toggleCart = () => {
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        };
+
+        qs('#mobileCartBtn').onclick = toggleCart;
+        qs('#closeCart').onclick = toggleCart;
+        qs('#overlay').onclick = toggleCart;
+
+        /* MODAL LOGIC */
+        qs('#agreeCheckbox').onchange = (e) => qs('#continueBtn').disabled = !e.target.checked;
+        qs('#continueBtn').onclick = () => {
+            qs('#disclaimerModal').remove();
+            loadInventory();
+        };
+
+        /* LOGIC: REUSE YOUR EXISTING FUNCTIONS HERE */
+        // Note: Keep your loadInventory, populateFilters, applyFilters, and confirmBtn logic.
+        // Update renderBooks and renderCart slightly to match the new ID naming and Tailwind classes.
+
+        async function loadInventory(){
+            try {
+                const res = await fetch(API_URL + '?action=getInventory');
+                inventory = await res.json();
+                populateFilters();
+                renderBooks(inventory);
+            } catch(e) {
+                qs('#booksGrid').innerHTML = "Failed to load inventory.";
+            }
+        }
+
+        function populateFilters(){
+            const authors = [...new Set(inventory.map(b => b.Author))].sort();
+            const genres = [...new Set(inventory.map(b => b.Genre))].sort();
+            qs('#filterAuthor').innerHTML += authors.map(a => `<option value="${a}">${a}</option>`).join('');
+            qs('#filterGenre').innerHTML += genres.map(g => `<option value="${g}">${g}</option>`).join('');
+        }
+
+        function renderBooks(list) {
+            const grid = qs('#booksGrid');
+            grid.innerHTML = list.map(book => {
+                const price = Number(book['Discounted Price'] || book.Price);
+                return `
+                    <div class="book-card bg-white p-4 rounded-2xl flex flex-col justify-between shadow-sm">
+                        <div>
+                            <span class="text-[10px] font-bold text-indigo-500 uppercase">${book.Genre}</span>
+                            <h3 class="font-bold text-slate-900 leading-tight my-1">${book.Title}</h3>
+                            <p class="text-xs text-slate-500 mb-4">${book.Author}</p>
+                        </div>
+                        <div class="flex items-center justify-between mt-4">
+                            <span class="font-bold text-slate-900">${fmt(price)}</span>
+                            <button onclick="addToCart('${book.Book_Code}', '${book.Title.replace(/'/g, "\\'")}', '${book.Author.replace(/'/g, "\\'")}', ${price})" 
+                                    class="bg-slate-900 text-white text-xs px-4 py-2 rounded-lg font-bold hover:bg-indigo-600 transition-colors">
+                                Add +
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function addToCart(code, title, author, price) {
+            if (cart[code]) cart[code].qty++;
+            else cart[code] = { code, title, author, price, qty: 1 };
+            
+            // Visual feedback for mobile
+            qs('#mobileCartBtn').classList.add('animate-bounce');
+            setTimeout(() => qs('#mobileCartBtn').classList.remove('animate-bounce'), 500);
+            
+            renderCart();
+        }
+
+        function renderCart() {
+            const items = Object.values(cart);
+            const container = qs('#cartContent');
+            let total = 0; let qty = 0;
+
+            if (items.length === 0) {
+                container.innerHTML = '<p class="text-center text-slate-400 py-10 text-sm">Your cart is empty</p>';
+            } else {
+                container.innerHTML = items.map(item => {
+                    const sub = item.price * item.qty;
+                    total += sub; qty += item.qty;
+                    return `
+                        <div class="flex justify-between items-center gap-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <div class="flex-1">
+                                <h4 class="text-xs font-bold line-clamp-1">${item.title}</h4>
+                                <p class="text-[10px] text-slate-500">${fmt(item.price)}</p>
+                            </div>
+                            <input type="number" value="${item.qty}" min="1" 
+                                onchange="updateQty('${item.code}', this.value)" 
+                                class="w-12 bg-white border border-slate-200 rounded text-xs p-1 font-bold" />
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            qs('#totalQty').innerText = qty;
+            qs('#mobileCount').innerText = qty;
+            qs('#grandTotal').innerText = fmt(total);
+        }
+
+        function updateQty(code, val) {
+            if (val < 1) return;
+            cart[code].qty = parseInt(val);
+            renderCart();
+        }
+
+        qs('#clearCart').onclick = () => { if(confirm("Clear cart?")) { cart = {}; renderCart(); }};
+
+        // Reuse your Search/Filter logic
+        qs('#searchTitle').oninput = applyFilters;
+        qs('#filterAuthor').onchange = applyFilters;
+        qs('#filterGenre').onchange = applyFilters;
+
+        function applyFilters() {
+            const q = qs('#searchTitle').value.toLowerCase();
+            const a = qs('#filterAuthor').value;
+            const g = qs('#filterGenre').value;
+            const filtered = inventory.filter(b => 
+                (b.Title.toLowerCase().includes(q)) &&
+                (!a || b.Author === a) &&
+                (!g || b.Genre === g)
+            );
+            renderBooks(filtered);
+        }
+
+        /* Confirm Reservation: send to Apps Script */
+qs('#confirmBtn').addEventListener('click', async () => {
+  const items = Object.values(cart);
+  
+  if (items.length === 0) { 
+    alert('Your cart is empty! Please add a book first.'); 
+    return; 
+  }
+
+  // Visual feedback: Disable button to prevent double-submission
+  const btn = qs('#confirmBtn');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Processing...';
+
+  // Prepare payload
+  const payloadItems = items.map(i => ({
+    title: i.title, 
+    author: i.author, 
+    code: i.code, 
+    price: Number(i.price), 
+    qty: Number(i.qty)
+  }));
+
+  try {
+    // Send as form-encoded: data=<json>
+    const body = 'data=' + encodeURIComponent(JSON.stringify({ items: payloadItems }));
+    
+    const resp = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body
+    });
+
+    if (!resp.ok) throw new Error('Network response was not ok');
+
+    const data = await resp.json();
+
+    if (data && data.success) {
+      lastCreatedOrderId = data.orderID;
+      
+      // Build the Google Form link with pre-filled Order ID
+      const formLink = `${FORM_BASE}${FORM_BASE.includes('?') ? '&' : '?'}${FORM_ORDER_FIELD}=${encodeURIComponent(data.orderID)}`;
+      
+      // Update UI with Success Message
+      const confBox = qs('#confirmationBox');
+      confBox.innerHTML = `
+        <div class="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl mt-4">
+          <p class="text-emerald-700 font-bold text-sm">✅ Reservation Confirmed!</p>
+          <p class="text-xs text-emerald-600 mt-1">Order ID: <span class="font-mono font-bold">${data.orderID}</span></p>
+          <div class="grid grid-cols-1 gap-2 mt-4">
+            <button onclick="window.open('${formLink}','_blank')" class="bg-emerald-600 text-white py-2 rounded-lg font-bold text-xs shadow-md">Complete Google Form</button>
+            <button onclick="copyOrderId('${data.orderID}')" class="bg-white border border-emerald-200 text-emerald-700 py-2 rounded-lg font-bold text-xs">Copy Order ID</button>
+          </div>
+        </div>
+      `;
+      confBox.classList.remove('hidden');
+      
+      // Clear cart state
+      cart = {};
+      renderCart();
+      
+    } else {
+      throw new Error(data.message || 'The server rejected the reservation.');
+    }
+  } catch (err) {
+    console.error('Reservation Error:', err);
+    alert('Oops! Reservation failed. Please check your internet or try again.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+});
+
+/* Helper for copying */
+function copyOrderId(id) {
+  navigator.clipboard.writeText(id).then(() => alert('Order ID Copied!'));
+}
+    </script>
+</body>
+</html>
