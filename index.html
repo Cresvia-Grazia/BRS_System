@@ -12,11 +12,9 @@
         .book-card { transition: all 0.2s ease; border: 1px solid #f1f5f9; }
         .book-card:active { transform: scale(0.98); }
         
-        /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 
-        /* Hide cart on mobile unless toggled */
         @media (max-width: 1024px) {
             #sidebar {
                 position: fixed; bottom: 0; left: 0; right: 0;
@@ -85,9 +83,8 @@
                     GCash / PayMaya: <strong>09126456792 (cherel)</strong>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3">
-                    <button id="reviewBtn" class="py-3 rounded-xl border border-slate-200 font-bold text-sm hover:bg-slate-50 transition-colors">Review</button>
-                    <button id="confirmBtn" class="py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all">Confirm</button>
+                <div class="grid grid-cols-1 gap-3">
+                    <button id="confirmBtn" class="w-full py-4 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all">Confirm Reservation</button>
                 </div>
 
                 <div id="confirmationBox" class="mt-4 hidden animate-in fade-in slide-in-from-bottom-2 duration-300"></div>
@@ -101,10 +98,10 @@
         <div class="bg-white w-full max-w-lg rounded-3xl p-8 shadow-2xl">
             <h2 class="text-2xl font-bold mb-4">Before you start</h2>
             <ul class="space-y-3 text-sm text-slate-600 mb-8">
-                <li class="flex gap-3"><span>✅</span> No personal info collected here.</li>
+                <li class="flex gap-3"><span>✅</span> Review your items carefully.</li>
                 <li class="flex gap-3"><span>✅</span> Redirect to Google Form after confirm.</li>
-                <li class="flex gap-3"><span>✅</span> <strong>Payment First</strong> policy.</li>
-                <li class="flex gap-3"><span>✅</span> Pick-up only.</li>
+                <li class="flex gap-3"><span>✅</span> <strong>Payment First</strong> via GCash/PayMaya.</li>
+                <li class="flex gap-3"><span>✅</span> Pick-up only at designated location.</li>
             </ul>
             <div class="flex items-center gap-4">
                 <label class="flex items-center gap-2 flex-1 cursor-pointer text-sm font-medium">
@@ -116,40 +113,29 @@
     </div>
 
     <script>
-        /* [KEEP YOUR CONFIG AND API LOGIC FROM PREVIOUS VERSION] */
         const API_URL = 'https://script.google.com/macros/s/AKfycbzpSgoZevw-NO5Ttil7dQ9LSPMCRKU0OGwuXczTCGCNzSRYpY5CEGpKTN1ywvCgyPxP/exec';
-        const FORM_BASE = 'https://docs.google.com/forms/d/e/1FAIpQLSeLJyNxN004Pg1Zua2f06ZJzVIHVU9njEM3lXVuRCLjx1os0Q/viewform';
-        const FORM_ORDER_FIELD = 'entry.813489840';
+        // Updated Google Form Link
+        const GFORM_LINK = 'https://forms.gle/FdDzZswDL1ExRrwW7';
 
         let inventory = [];
         let cart = {};
         const qs = s => document.querySelector(s);
-        const qsa = s => document.querySelectorAll(s);
         const fmt = n => '₱' + Number(n).toLocaleString(undefined, {minimumFractionDigits: 2});
 
-        /* MOBILE UI HANDLERS */
+        // UI Handlers
         const sidebar = qs('#sidebar');
         const overlay = qs('#overlay');
-        
-        const toggleCart = () => {
-            sidebar.classList.toggle('active');
-            overlay.classList.toggle('active');
-        };
+        const toggleCart = () => { sidebar.classList.toggle('active'); overlay.classList.toggle('active'); };
 
         qs('#mobileCartBtn').onclick = toggleCart;
         qs('#closeCart').onclick = toggleCart;
         qs('#overlay').onclick = toggleCart;
 
-        /* MODAL LOGIC */
         qs('#agreeCheckbox').onchange = (e) => qs('#continueBtn').disabled = !e.target.checked;
         qs('#continueBtn').onclick = () => {
             qs('#disclaimerModal').remove();
             loadInventory();
         };
-
-        /* LOGIC: REUSE YOUR EXISTING FUNCTIONS HERE */
-        // Note: Keep your loadInventory, populateFilters, applyFilters, and confirmBtn logic.
-        // Update renderBooks and renderCart slightly to match the new ID naming and Tailwind classes.
 
         async function loadInventory(){
             try {
@@ -195,11 +181,6 @@
         function addToCart(code, title, author, price) {
             if (cart[code]) cart[code].qty++;
             else cart[code] = { code, title, author, price, qty: 1 };
-            
-            // Visual feedback for mobile
-            qs('#mobileCartBtn').classList.add('animate-bounce');
-            setTimeout(() => qs('#mobileCartBtn').classList.remove('animate-bounce'), 500);
-            
             renderCart();
         }
 
@@ -227,7 +208,6 @@
                     `;
                 }).join('');
             }
-
             qs('#totalQty').innerText = qty;
             qs('#mobileCount').innerText = qty;
             qs('#grandTotal').innerText = fmt(total);
@@ -241,7 +221,6 @@
 
         qs('#clearCart').onclick = () => { if(confirm("Clear cart?")) { cart = {}; renderCart(); }};
 
-        // Reuse your Search/Filter logic
         qs('#searchTitle').oninput = applyFilters;
         qs('#filterAuthor').onchange = applyFilters;
         qs('#filterGenre').onchange = applyFilters;
@@ -258,84 +237,59 @@
             renderBooks(filtered);
         }
 
-        /* Confirm Reservation: send to Apps Script */
-qs('#confirmBtn').addEventListener('click', async () => {
-  const items = Object.values(cart);
-  
-  if (items.length === 0) { 
-    alert('Your cart is empty! Please add a book first.'); 
-    return; 
-  }
+        /* Adjusted Confirm Button Logic */
+        qs('#confirmBtn').addEventListener('click', async () => {
+            const items = Object.values(cart);
+            if (items.length === 0) { 
+                alert('Please add books to your reservation first.'); 
+                return; 
+            }
 
-  // Visual feedback: Disable button to prevent double-submission
-  const btn = qs('#confirmBtn');
-  const originalText = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = 'Processing...';
+            const btn = qs('#confirmBtn');
+            btn.disabled = true;
+            btn.textContent = 'Processing Reservation...';
 
-  // Prepare payload
-  const payloadItems = items.map(i => ({
-    title: i.title, 
-    author: i.author, 
-    code: i.code, 
-    price: Number(i.price), 
-    qty: Number(i.qty)
-  }));
+            const payloadItems = items.map(i => ({
+                title: i.title, 
+                code: i.code, 
+                price: Number(i.price), 
+                qty: Number(i.qty)
+            }));
 
-  try {
-    // Send as form-encoded: data=<json>
-    const body = 'data=' + encodeURIComponent(JSON.stringify({ items: payloadItems }));
-    
-    const resp = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body
-    });
+            try {
+                const body = 'data=' + encodeURIComponent(JSON.stringify({ items: payloadItems }));
+                const resp = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: body
+                });
 
-    if (!resp.ok) throw new Error('Network response was not ok');
+                const data = await resp.json();
 
-    const data = await resp.json();
-
-    if (data && data.success) {
-      lastCreatedOrderId = data.orderID;
-      
-      // Build the Google Form link with pre-filled Order ID
-      const formLink = `${FORM_BASE}${FORM_BASE.includes('?') ? '&' : '?'}${FORM_ORDER_FIELD}=${encodeURIComponent(data.orderID)}`;
-      
-      // Update UI with Success Message
-      const confBox = qs('#confirmationBox');
-      confBox.innerHTML = `
-        <div class="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl mt-4">
-          <p class="text-emerald-700 font-bold text-sm">✅ Reservation Confirmed!</p>
-          <p class="text-xs text-emerald-600 mt-1">Order ID: <span class="font-mono font-bold">${data.orderID}</span></p>
-          <div class="grid grid-cols-1 gap-2 mt-4">
-            <button onclick="window.open('${formLink}','_blank')" class="bg-emerald-600 text-white py-2 rounded-lg font-bold text-xs shadow-md">Complete Google Form</button>
-            <button onclick="copyOrderId('${data.orderID}')" class="bg-white border border-emerald-200 text-emerald-700 py-2 rounded-lg font-bold text-xs">Copy Order ID</button>
-          </div>
-        </div>
-      `;
-      confBox.classList.remove('hidden');
-      
-      // Clear cart state
-      cart = {};
-      renderCart();
-      
-    } else {
-      throw new Error(data.message || 'The server rejected the reservation.');
-    }
-  } catch (err) {
-    console.error('Reservation Error:', err);
-    alert('Oops! Reservation failed. Please check your internet or try again.');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = originalText;
-  }
-});
-
-/* Helper for copying */
-function copyOrderId(id) {
-  navigator.clipboard.writeText(id).then(() => alert('Order ID Copied!'));
-}
+                if (data && data.success) {
+                    const confBox = qs('#confirmationBox');
+                    confBox.innerHTML = `
+                        <div class="bg-indigo-50 border border-indigo-100 p-5 rounded-2xl mt-4">
+                            <p class="text-indigo-800 font-bold text-sm">Reservation Logged!</p>
+                            <p class="text-[11px] text-indigo-600 mt-1 mb-4">Please complete the official form to secure your pickup.</p>
+                            <button onclick="window.open('${GFORM_LINK}','_blank')" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold text-sm shadow-md">
+                                Open Google Form
+                            </button>
+                        </div>
+                    `;
+                    confBox.classList.remove('hidden');
+                    cart = {};
+                    renderCart();
+                } else {
+                    throw new Error('Stock update failed.');
+                }
+            } catch (err) {
+                alert('Reservation failed. Please try again.');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Confirm Reservation';
+            }
+        });
     </script>
 </body>
 </html>
